@@ -37,7 +37,7 @@ export default function ProductCustomizerScene({ config }: Props) {
       powerPreference: "high-performance",
     });
     renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.3;
     container.appendChild(renderer.domElement);
@@ -257,12 +257,23 @@ export default function ProductCustomizerScene({ config }: Props) {
     };
     window.addEventListener("resize", handleResize);
 
+    // Visibility observer to pause rendering when offscreen
+    let isVisible = true;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        isVisible = entry.isIntersecting;
+      },
+      { threshold: 0.05 }
+    );
+    observer.observe(container);
+
     // Loop
     let animId: number;
     const clock = new THREE.Clock();
 
     const animate = () => {
       animId = requestAnimationFrame(animate);
+      if (!isVisible) return;
       const elapsed = clock.getElapsedTime();
 
       if (!isDragging) {
@@ -295,6 +306,7 @@ export default function ProductCustomizerScene({ config }: Props) {
 
     return () => {
       cancelAnimationFrame(animId);
+      observer.disconnect();
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);

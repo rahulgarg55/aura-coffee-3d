@@ -50,7 +50,7 @@ export default function HeroCupScene() {
       powerPreference: "high-performance",
     });
     renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.25;
     container.appendChild(renderer.domElement);
@@ -350,12 +350,23 @@ export default function HeroCupScene() {
     };
     window.addEventListener("resize", handleResize);
 
+    // Visibility observer to pause rendering when offscreen
+    let isVisible = true;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        isVisible = entry.isIntersecting;
+      },
+      { threshold: 0.05 }
+    );
+    observer.observe(container);
+
     // Animation Loop
     let animationFrameId: number;
     let clock = new THREE.Clock();
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
+      if (!isVisible) return;
       const elapsed = clock.getElapsedTime();
 
       // Soft float of the cup
@@ -405,6 +416,7 @@ export default function HeroCupScene() {
 
     return () => {
       cancelAnimationFrame(animationFrameId);
+      observer.disconnect();
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("mouseup", handleMouseUp);
       domEl.removeEventListener("mousemove", handleMouseMove);

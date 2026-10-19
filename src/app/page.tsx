@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
+import dynamic from "next/dynamic";
 import Navbar from "../components/ui/Navbar";
 import HeroSection from "../components/ui/HeroSection";
-import ScrollJourneyScene from "../components/3d/ScrollJourneyScene";
 import InteractiveCustomizer from "../components/ui/InteractiveCustomizer";
 import LatteArtCanvas from "../components/latte-art/LatteArtCanvas";
 import MenuSection from "../components/ui/MenuSection";
@@ -14,6 +14,23 @@ import ReservationModal from "../components/ui/ReservationModal";
 import CartDrawer from "../components/ui/CartDrawer";
 import Footer from "../components/ui/Footer";
 import { CartItem } from "../types/coffee";
+
+const ScrollJourneyScene = dynamic(
+  () => import("../components/3d/ScrollJourneyScene"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-screen bg-[#070605] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-amber-500/20 border-t-amber-400 rounded-full animate-spin" />
+          <span className="text-xs font-mono tracking-widest text-amber-200/60">
+            INITIALIZING 3D EXTRACTION JOURNEY...
+          </span>
+        </div>
+      </div>
+    ),
+  }
+);
 
 export default function Home() {
   const [cart, setCart] = useState<CartItem[]>([
