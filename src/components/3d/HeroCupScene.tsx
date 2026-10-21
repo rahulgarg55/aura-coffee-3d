@@ -4,11 +4,11 @@ import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
 /**
- * Creates a procedural 3D coffee bean mesh with center cleft
+ * Procedural 3D coffee bean geometry with realistic center cleft
  */
 export function createCoffeeBeanGeometry(): THREE.BufferGeometry {
-  const geom = new THREE.SphereGeometry(0.35, 24, 18);
-  geom.scale(1.2, 0.75, 0.7);
+  const geom = new THREE.SphereGeometry(0.35, 28, 20);
+  geom.scale(1.25, 0.75, 0.7);
 
   const pos = geom.attributes.position;
   for (let i = 0; i < pos.count; i++) {
@@ -16,14 +16,129 @@ export function createCoffeeBeanGeometry(): THREE.BufferGeometry {
     const y = pos.getY(i);
     const z = pos.getZ(i);
 
-    // Indent the center crease/cleft on the top surface
+    // Deep realistic center crease on top surface
     if (y > 0 && Math.abs(x) < 0.12) {
-      const depth = (0.12 - Math.abs(x)) * 0.85;
+      const depth = (0.12 - Math.abs(x)) * 0.95;
       pos.setY(i, y - depth);
+    }
+    // Slight pinch at tips
+    if (Math.abs(z) > 0.18) {
+      const pinch = (Math.abs(z) - 0.18) * 0.2;
+      pos.setX(i, x * (1 - pinch));
     }
   }
   geom.computeVertexNormals();
   return geom;
+}
+
+/**
+ * Creates an ultra-detailed procedural Latte Art Crema Texture
+ */
+function createLatteArtTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1024;
+  canvas.height = 1024;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return new THREE.CanvasTexture(canvas);
+
+  const center = 512;
+
+  // 1. Base Espresso Crema Radial Gradient (Caramel to Dark Roast)
+  const grad = ctx.createRadialGradient(center, center, 30, center, center, 510);
+  grad.addColorStop(0, "#f3dfca");
+  grad.addColorStop(0.18, "#d99d62");
+  grad.addColorStop(0.45, "#aa652d");
+  grad.addColorStop(0.75, "#6b3715");
+  grad.addColorStop(0.95, "#341708");
+  grad.addColorStop(1, "#1e0b03");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  // 2. Microfoam Crema Specks (Simulates real espresso microfoam bubbles)
+  ctx.fillStyle = "rgba(40, 16, 5, 0.2)";
+  for (let i = 0; i < 2200; i++) {
+    const r = Math.random() * 490;
+    const th = Math.random() * Math.PI * 2;
+    ctx.beginPath();
+    ctx.arc(center + Math.cos(th) * r, center + Math.sin(th) * r, 0.8 + Math.random() * 1.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // 3. Silky Steamed Milk Rosetta Feathering
+  ctx.save();
+  ctx.shadowColor = "rgba(255, 230, 205, 0.4)";
+  ctx.shadowBlur = 12;
+
+  // Center Stem
+  ctx.strokeStyle = "rgba(255, 250, 242, 0.94)";
+  ctx.lineWidth = 26;
+  ctx.lineCap = "round";
+
+  ctx.beginPath();
+  ctx.moveTo(center, 840);
+  ctx.bezierCurveTo(center - 20, 560, center - 15, 340, center, 200);
+  ctx.stroke();
+
+  // Rosetta Side Leaves (8 balanced tiers)
+  for (let i = 0; i < 8; i++) {
+    const y = 780 - i * 72;
+    const spread = 150 - i * 13;
+    const strokeWidth = 24 - i * 1.8;
+    ctx.lineWidth = strokeWidth;
+
+    // Left leaf
+    ctx.beginPath();
+    ctx.moveTo(center, y);
+    ctx.bezierCurveTo(
+      center - spread * 0.55,
+      y - 36,
+      center - spread,
+      y - 16,
+      center - spread * 1.12,
+      y + 18
+    );
+    ctx.stroke();
+
+    // Right leaf
+    ctx.beginPath();
+    ctx.moveTo(center, y);
+    ctx.bezierCurveTo(
+      center + spread * 0.55,
+      y - 36,
+      center + spread,
+      y - 16,
+      center + spread * 1.12,
+      y + 18
+    );
+    ctx.stroke();
+  }
+
+  // Heart Crest at apex
+  ctx.fillStyle = "rgba(255, 252, 245, 0.98)";
+  ctx.beginPath();
+  ctx.arc(center - 28, 195, 32, 0, Math.PI * 2);
+  ctx.arc(center + 28, 195, 32, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(center - 56, 205);
+  ctx.lineTo(center, 275);
+  ctx.lineTo(center + 56, 205);
+  ctx.fill();
+
+  ctx.restore();
+
+  // Outer gold rim glow ring
+  ctx.strokeStyle = "rgba(212, 175, 55, 0.35)";
+  ctx.lineWidth = 14;
+  ctx.beginPath();
+  ctx.arc(center, center, 500, 0, Math.PI * 2);
+  ctx.stroke();
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.anisotropy = 8;
+  tex.generateMipmaps = true;
+  return tex;
 }
 
 export default function HeroCupScene() {
@@ -35,19 +150,20 @@ export default function HeroCupScene() {
     const container = containerRef.current;
     if (!container) return;
 
-    // Dimensions
     let width = container.clientWidth || 600;
     let height = container.clientHeight || 600;
 
-    // Scene, Camera, Renderer
+    // 1. Three.js Scene & Camera Setup
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
-    camera.position.set(0, 1.2, 5.2);
+    const camera = new THREE.PerspectiveCamera(36, width / height, 0.1, 100);
+    camera.position.set(0, 1.1, 4.8);
 
+    // 2. High-Performance WebGL Renderer (No heavy multi-pass transmission buffer)
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
       alpha: true,
       powerPreference: "high-performance",
+      precision: "mediump",
     });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
@@ -55,162 +171,137 @@ export default function HeroCupScene() {
     renderer.toneMappingExposure = 1.25;
     container.appendChild(renderer.domElement);
 
-    // Studio Lights
-    const ambientLight = new THREE.AmbientLight(0xfff0e6, 0.85);
+    // 3. Studio Lighting Rig
+    const ambientLight = new THREE.AmbientLight(0xfff5ee, 0.8);
     scene.add(ambientLight);
 
-    const warmKeyLight = new THREE.SpotLight(0xffb070, 4.5);
-    warmKeyLight.position.set(4, 5, 4);
-    warmKeyLight.angle = Math.PI / 4;
-    warmKeyLight.penumbra = 0.6;
-    scene.add(warmKeyLight);
+    // Warm Key Light (Soft Studio Softbox)
+    const keyLight = new THREE.DirectionalLight(0xffdfb8, 2.5);
+    keyLight.position.set(3, 4, 3);
+    scene.add(keyLight);
 
-    const rimLight = new THREE.PointLight(0xe28743, 3.5, 10);
-    rimLight.position.set(-3.5, 3, -2.5);
+    // Cool Amber Rim Light (Gives the glass crystal contour pop)
+    const rimLight = new THREE.PointLight(0xe28743, 3.5, 12);
+    rimLight.position.set(-3.5, 2.5, -2.5);
     scene.add(rimLight);
 
-    const goldFillLight = new THREE.DirectionalLight(0xd4af37, 1.2);
-    goldFillLight.position.set(0, -2, 2);
-    scene.add(goldFillLight);
+    // Subtle Gold Floor Fill
+    const fillLight = new THREE.DirectionalLight(0xd4af37, 0.8);
+    fillLight.position.set(0, -2, 2);
+    scene.add(fillLight);
 
-    // Main Pivot Group for User Rotation
+    // 4. Contact Shadow Disk (Grounds the cup in space)
+    const shadowCanvas = document.createElement("canvas");
+    shadowCanvas.width = 256;
+    shadowCanvas.height = 256;
+    const sCtx = shadowCanvas.getContext("2d");
+    if (sCtx) {
+      const sGrad = sCtx.createRadialGradient(128, 128, 10, 128, 128, 120);
+      sGrad.addColorStop(0, "rgba(0, 0, 0, 0.65)");
+      sGrad.addColorStop(0.5, "rgba(20, 10, 5, 0.25)");
+      sGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+      sCtx.fillStyle = sGrad;
+      sCtx.fillRect(0, 0, 256, 256);
+    }
+    const shadowTex = new THREE.CanvasTexture(shadowCanvas);
+    const shadowGeom = new THREE.PlaneGeometry(3.2, 3.2);
+    const shadowMat = new THREE.MeshBasicMaterial({
+      map: shadowTex,
+      transparent: true,
+      opacity: 0.7,
+      depthWrite: false,
+    });
+    const shadowMesh = new THREE.Mesh(shadowGeom, shadowMat);
+    shadowMesh.rotation.x = -Math.PI / 2;
+    shadowMesh.position.y = -1.15;
+    scene.add(shadowMesh);
+
+    // 5. Cup Assembly Pivot Group
     const cupGroup = new THREE.Group();
     scene.add(cupGroup);
 
-    // 1. Double-Walled Crystal Glass Cup
-    // Outer glass cylinder/lathe
+    // A. Double-Walled Crystal Glass Vessel
     const glassPoints: THREE.Vector2[] = [
       new THREE.Vector2(0, 0),
-      new THREE.Vector2(0.9, 0),
-      new THREE.Vector2(1.1, 0.25),
-      new THREE.Vector2(1.25, 1.6),
-      new THREE.Vector2(1.28, 1.9),
-      new THREE.Vector2(1.22, 1.9),
-      new THREE.Vector2(1.12, 1.6),
+      new THREE.Vector2(0.85, 0),
+      new THREE.Vector2(1.05, 0.2),
+      new THREE.Vector2(1.24, 1.55),
+      new THREE.Vector2(1.26, 1.8),
+      new THREE.Vector2(1.2, 1.8),
+      new THREE.Vector2(1.12, 1.55),
       new THREE.Vector2(0.95, 0.35),
       new THREE.Vector2(0.85, 0.25),
       new THREE.Vector2(0, 0.25),
     ];
-    const glassGeom = new THREE.LatheGeometry(glassPoints, 48);
-    const glassMaterial = new THREE.MeshPhysicalMaterial({
+    const glassGeom = new THREE.LatheGeometry(glassPoints, 36);
+    // Optimized standard PBR material for silky 60 FPS
+    const glassMaterial = new THREE.MeshStandardMaterial({
       color: 0xffffff,
-      transmission: 0.92,
-      opacity: 1,
+      roughness: 0.08,
+      metalness: 0.1,
       transparent: true,
-      roughness: 0.04,
-      ior: 1.52,
-      thickness: 0.45,
-      specularIntensity: 1.0,
-      specularColor: 0xffeedd,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.05,
+      opacity: 0.72,
     });
     const glassCup = new THREE.Mesh(glassGeom, glassMaterial);
     glassCup.position.y = -0.9;
     cupGroup.add(glassCup);
 
-    // 2. Coffee Liquid Core
+    // B. Gold Rim Accent Ring
+    const goldRimGeom = new THREE.TorusGeometry(1.23, 0.02, 16, 48);
+    const goldRimMat = new THREE.MeshStandardMaterial({
+      color: 0xd4af37,
+      metalness: 0.9,
+      roughness: 0.2,
+    });
+    const goldRim = new THREE.Mesh(goldRimGeom, goldRimMat);
+    goldRim.rotation.x = Math.PI / 2;
+    goldRim.position.y = 0.9;
+    cupGroup.add(goldRim);
+
+    // C. Rich Roasted Espresso Core
     const liquidPoints: THREE.Vector2[] = [
       new THREE.Vector2(0, 0.28),
       new THREE.Vector2(0.82, 0.28),
-      new THREE.Vector2(1.08, 1.55),
-      new THREE.Vector2(0, 1.55),
+      new THREE.Vector2(1.08, 1.5),
+      new THREE.Vector2(0, 1.5),
     ];
-    const liquidGeom = new THREE.LatheGeometry(liquidPoints, 40);
-    const liquidMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0x1a0d07,
-      transmission: 0.25,
-      roughness: 0.12,
-      ior: 1.34,
-      thickness: 1.2,
-      emissive: 0x241107,
-      emissiveIntensity: 0.35,
+    const liquidGeom = new THREE.LatheGeometry(liquidPoints, 32);
+    const liquidMaterial = new THREE.MeshStandardMaterial({
+      color: 0x241107,
+      roughness: 0.15,
+      metalness: 0.05,
+      emissive: 0x1a0b04,
+      emissiveIntensity: 0.3,
     });
     const liquidMesh = new THREE.Mesh(liquidGeom, liquidMaterial);
     liquidMesh.position.y = -0.9;
     cupGroup.add(liquidMesh);
 
-    // 3. Crema / Foam Disc on Top with Rosetta Ripple
-    const cremaGeom = new THREE.CircleGeometry(1.07, 48);
+    // D. Photorealistic Rosetta Foam Disc
+    const cremaGeom = new THREE.CircleGeometry(1.07, 36);
     cremaGeom.rotateX(-Math.PI / 2);
-
-    // Canvas procedural crema texture
-    const canvas = document.createElement("canvas");
-    canvas.width = 512;
-    canvas.height = 512;
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      // Golden hazelnut gradient
-      const grad = ctx.createRadialGradient(256, 256, 30, 256, 256, 250);
-      grad.addColorStop(0, "#f2ddc4");
-      grad.addColorStop(0.35, "#cf9659");
-      grad.addColorStop(0.75, "#8a4d1f");
-      grad.addColorStop(1, "#3d1e0b");
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, 512, 512);
-
-      // Latte art rosetta feathering
-      ctx.strokeStyle = "rgba(255, 245, 235, 0.85)";
-      ctx.lineWidth = 14;
-      ctx.lineCap = "round";
-
-      // Center leaf
-      ctx.beginPath();
-      ctx.moveTo(256, 420);
-      ctx.bezierCurveTo(240, 280, 220, 160, 256, 90);
-      ctx.stroke();
-
-      // Rosetta wing petals
-      for (let i = 0; i < 7; i++) {
-        const y = 380 - i * 40;
-        const spread = 75 - i * 6;
-        ctx.lineWidth = 12 - i * 1.1;
-
-        // Left wing
-        ctx.beginPath();
-        ctx.moveTo(256, y);
-        ctx.bezierCurveTo(256 - spread * 0.6, y - 20, 256 - spread, y - 10, 256 - spread * 1.1, y + 10);
-        ctx.stroke();
-
-        // Right wing
-        ctx.beginPath();
-        ctx.moveTo(256, y);
-        ctx.bezierCurveTo(256 + spread * 0.6, y - 20, 256 + spread, y - 10, 256 + spread * 1.1, y + 10);
-        ctx.stroke();
-      }
-
-      // Heart crest
-      ctx.fillStyle = "rgba(255, 248, 240, 0.95)";
-      ctx.beginPath();
-      ctx.arc(245, 85, 16, 0, Math.PI * 2);
-      ctx.arc(267, 85, 16, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    const cremaTexture = new THREE.CanvasTexture(canvas);
-    cremaTexture.wrapS = THREE.ClampToEdgeWrapping;
-    cremaTexture.wrapT = THREE.ClampToEdgeWrapping;
-
+    const cremaTexture = createLatteArtTexture();
     const cremaMaterial = new THREE.MeshStandardMaterial({
       map: cremaTexture,
-      roughness: 0.65,
+      roughness: 0.55,
       metalness: 0.05,
     });
     const cremaMesh = new THREE.Mesh(cremaGeom, cremaMaterial);
-    cremaMesh.position.set(0, 0.65, 0);
+    cremaMesh.position.set(0, 0.61, 0);
     cupGroup.add(cremaMesh);
 
-    // 4. Floating Coffee Beans in 3D Space
+    // 6. Floating Roasted Specialty Coffee Beans
     const beanGeom = createCoffeeBeanGeometry();
     const beanMaterial = new THREE.MeshStandardMaterial({
-      color: 0x3d2012,
-      roughness: 0.38,
+      color: 0x2c160b,
+      roughness: 0.32,
       metalness: 0.15,
     });
 
     const beansGroup = new THREE.Group();
     scene.add(beansGroup);
 
-    const beansCount = 14;
+    const beansCount = 12;
     const beanData: Array<{
       mesh: THREE.Mesh;
       baseX: number;
@@ -224,15 +315,15 @@ export default function HeroCupScene() {
 
     for (let i = 0; i < beansCount; i++) {
       const beanMesh = new THREE.Mesh(beanGeom, beanMaterial);
-      const angle = (i / beansCount) * Math.PI * 2 + (Math.random() * 0.4);
-      const radius = 1.9 + Math.random() * 1.4;
+      const angle = (i / beansCount) * Math.PI * 2 + Math.random() * 0.3;
+      const radius = 1.8 + Math.random() * 1.3;
       const x = Math.cos(angle) * radius;
-      const y = (Math.random() - 0.5) * 3.2;
+      const y = (Math.random() - 0.5) * 2.6 + 0.2;
       const z = Math.sin(angle) * radius;
 
       beanMesh.position.set(x, y, z);
       beanMesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-      const scale = 0.55 + Math.random() * 0.4;
+      const scale = 0.55 + Math.random() * 0.35;
       beanMesh.scale.set(scale, scale, scale);
 
       beansGroup.add(beanMesh);
@@ -241,49 +332,43 @@ export default function HeroCupScene() {
         baseX: x,
         baseY: y,
         baseZ: z,
-        speedY: 0.4 + Math.random() * 0.5,
-        rotSpeedX: 0.01 + Math.random() * 0.02,
-        rotSpeedY: 0.015 + Math.random() * 0.025,
+        speedY: 0.6 + Math.random() * 0.6,
+        rotSpeedX: 0.008 + Math.random() * 0.015,
+        rotSpeedY: 0.01 + Math.random() * 0.02,
         phase: Math.random() * Math.PI * 2,
       });
     }
 
-    // 5. Dynamic Rising Steam Particle System
-    const steamParticleCount = 65;
+    // 7. Dynamic Rising Steam Particle System
+    const steamParticleCount = 45;
     const steamGeom = new THREE.BufferGeometry();
     const steamPositions = new Float32Array(steamParticleCount * 3);
-    const steamOpacities = new Float32Array(steamParticleCount);
-    const steamScales = new Float32Array(steamParticleCount);
     const steamSpeeds: number[] = [];
 
     for (let i = 0; i < steamParticleCount; i++) {
-      steamPositions[i * 3] = (Math.random() - 0.5) * 0.8;
-      steamPositions[i * 3 + 1] = 0.65 + Math.random() * 2.2;
-      steamPositions[i * 3 + 2] = (Math.random() - 0.5) * 0.8;
-      steamOpacities[i] = Math.random() * 0.35;
-      steamScales[i] = 0.1 + Math.random() * 0.25;
-      steamSpeeds.push(0.006 + Math.random() * 0.012);
+      steamPositions[i * 3] = (Math.random() - 0.5) * 0.7;
+      steamPositions[i * 3 + 1] = 0.65 + Math.random() * 2.0;
+      steamPositions[i * 3 + 2] = (Math.random() - 0.5) * 0.7;
+      steamSpeeds.push(0.008 + Math.random() * 0.014);
     }
-
     steamGeom.setAttribute("position", new THREE.BufferAttribute(steamPositions, 3));
 
-    // Custom circular soft smoke texture
     const smokeCanvas = document.createElement("canvas");
     smokeCanvas.width = 128;
     smokeCanvas.height = 128;
-    const sCtx = smokeCanvas.getContext("2d");
-    if (sCtx) {
-      const sGrad = sCtx.createRadialGradient(64, 64, 0, 64, 64, 60);
-      sGrad.addColorStop(0, "rgba(255, 240, 225, 0.8)");
-      sGrad.addColorStop(0.4, "rgba(240, 220, 200, 0.35)");
-      sGrad.addColorStop(1, "rgba(255, 255, 255, 0)");
-      sCtx.fillStyle = sGrad;
-      sCtx.fillRect(0, 0, 128, 128);
+    const smCtx = smokeCanvas.getContext("2d");
+    if (smCtx) {
+      const g = smCtx.createRadialGradient(64, 64, 0, 64, 64, 60);
+      g.addColorStop(0, "rgba(255, 240, 225, 0.85)");
+      g.addColorStop(0.35, "rgba(235, 215, 195, 0.3)");
+      g.addColorStop(1, "rgba(255, 255, 255, 0)");
+      smCtx.fillStyle = g;
+      smCtx.fillRect(0, 0, 128, 128);
     }
     const smokeTexture = new THREE.CanvasTexture(smokeCanvas);
 
     const steamMaterial = new THREE.PointsMaterial({
-      size: 0.55,
+      size: 0.45,
       map: smokeTexture,
       transparent: true,
       opacity: 0.35,
@@ -295,7 +380,7 @@ export default function HeroCupScene() {
 
     setIsLoaded(true);
 
-    // Mouse Interaction / Camera Tilt
+    // Mouse Controls & Drag Interaction
     let mouseX = 0;
     let mouseY = 0;
     let targetRotY = 0;
@@ -313,7 +398,7 @@ export default function HeroCupScene() {
         const deltaX = e.clientX - prevMouseX;
         const deltaY = e.clientY - prevMouseY;
         cupGroup.rotation.y += deltaX * 0.008;
-        cupGroup.rotation.x = Math.max(-0.5, Math.min(0.5, cupGroup.rotation.x + deltaY * 0.008));
+        cupGroup.rotation.x = Math.max(-0.4, Math.min(0.4, cupGroup.rotation.x + deltaY * 0.008));
         prevMouseX = e.clientX;
         prevMouseY = e.clientY;
       } else {
@@ -350,7 +435,7 @@ export default function HeroCupScene() {
     };
     window.addEventListener("resize", handleResize);
 
-    // Visibility observer to pause rendering when offscreen
+    // IntersectionObserver to sleep when scrolled away
     let isVisible = true;
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -360,22 +445,22 @@ export default function HeroCupScene() {
     );
     observer.observe(container);
 
-    // Animation Loop
-    let animationFrameId: number;
-    let clock = new THREE.Clock();
+    // 60-FPS Render Loop with Lerping
+    let animId: number;
+    const clock = new THREE.Clock();
 
     const animate = () => {
-      animationFrameId = requestAnimationFrame(animate);
+      animId = requestAnimationFrame(animate);
       if (!isVisible) return;
+
       const elapsed = clock.getElapsedTime();
 
-      // Soft float of the cup
-      cupGroup.position.y = Math.sin(elapsed * 1.5) * 0.08;
+      // Gentle floating levitation
+      cupGroup.position.y = Math.sin(elapsed * 1.4) * 0.05;
 
       if (!isDragging) {
-        // Natural gentle idle rotation + mouse parallax
-        targetRotY = mouseX * 0.35 + Math.sin(elapsed * 0.4) * 0.15;
-        targetRotX = -mouseY * 0.2;
+        targetRotY = mouseX * 0.3 + Math.sin(elapsed * 0.35) * 0.12;
+        targetRotX = -mouseY * 0.15;
         cupGroup.rotation.y += (targetRotY - cupGroup.rotation.y) * 0.05;
         cupGroup.rotation.x += (targetRotX - cupGroup.rotation.x) * 0.05;
       }
@@ -384,11 +469,9 @@ export default function HeroCupScene() {
       beanData.forEach((b) => {
         b.mesh.rotation.x += b.rotSpeedX;
         b.mesh.rotation.y += b.rotSpeedY;
-        b.mesh.position.y = b.baseY + Math.sin(elapsed * b.speedY + b.phase) * 0.25;
+        b.mesh.position.y = b.baseY + Math.sin(elapsed * b.speedY + b.phase) * 0.2;
       });
-
-      // Orbit the bean group gently
-      beansGroup.rotation.y = elapsed * 0.08;
+      beansGroup.rotation.y = elapsed * 0.06;
 
       // Animate steam particles rising
       const posAttr = steamGeom.attributes.position as THREE.BufferAttribute;
@@ -396,15 +479,13 @@ export default function HeroCupScene() {
 
       for (let i = 0; i < steamParticleCount; i++) {
         positions[i * 3 + 1] += steamSpeeds[i];
-        // Swirling curl noise approximation
-        positions[i * 3] += Math.sin(elapsed * 2 + positions[i * 3 + 1] * 3) * 0.003;
-        positions[i * 3 + 2] += Math.cos(elapsed * 2 + positions[i * 3 + 1] * 3) * 0.003;
+        positions[i * 3] += Math.sin(elapsed * 2 + positions[i * 3 + 1] * 2) * 0.002;
+        positions[i * 3 + 2] += Math.cos(elapsed * 2 + positions[i * 3 + 1] * 2) * 0.002;
 
-        // Reset particle if too high
-        if (positions[i * 3 + 1] > 2.8) {
+        if (positions[i * 3 + 1] > 2.6) {
           positions[i * 3 + 1] = 0.65;
-          positions[i * 3] = (Math.random() - 0.5) * 0.7;
-          positions[i * 3 + 2] = (Math.random() - 0.5) * 0.7;
+          positions[i * 3] = (Math.random() - 0.5) * 0.6;
+          positions[i * 3 + 2] = (Math.random() - 0.5) * 0.6;
         }
       }
       posAttr.needsUpdate = true;
@@ -415,7 +496,7 @@ export default function HeroCupScene() {
     animate();
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
+      cancelAnimationFrame(animId);
       observer.disconnect();
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("mouseup", handleMouseUp);
@@ -427,20 +508,27 @@ export default function HeroCupScene() {
       renderer.dispose();
       glassGeom.dispose();
       glassMaterial.dispose();
+      goldRimGeom.dispose();
+      goldRimMat.dispose();
       liquidGeom.dispose();
       liquidMaterial.dispose();
       cremaGeom.dispose();
       cremaMaterial.dispose();
+      cremaTexture.dispose();
       beanGeom.dispose();
       beanMaterial.dispose();
       steamGeom.dispose();
       steamMaterial.dispose();
+      smokeTexture.dispose();
+      shadowGeom.dispose();
+      shadowMat.dispose();
+      shadowTex.dispose();
     };
   }, []);
 
   return (
     <div className="relative w-full h-[520px] md:h-[680px] flex items-center justify-center">
-      {/* 3D WebGL Canvas Container */}
+      {/* 3D WebGL Canvas */}
       <div
         ref={containerRef}
         className="w-full h-full cursor-grab active:cursor-grabbing select-none"
@@ -457,7 +545,6 @@ export default function HeroCupScene() {
         <span>360° INTERACTIVE 3D CUP • DRAG TO ROTATE</span>
       </div>
 
-      {/* Loading state indicator */}
       {!isLoaded && (
         <div className="absolute inset-0 flex items-center justify-center bg-transparent">
           <div className="flex flex-col items-center gap-3">
